@@ -8,11 +8,20 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewGroup;
 import android.widget.ListView;
+
 import com.squareup.okhttp.Cache;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.picasso.OkHttpDownloader;
 import com.squareup.picasso.Picasso;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import io.palaima.debugdrawer.DebugDrawer;
 import io.palaima.debugdrawer.location.LocationModule;
 import io.palaima.debugdrawer.log.LogModule;
@@ -24,12 +33,6 @@ import io.palaima.debugdrawer.okhttp.OkHttpModule;
 import io.palaima.debugdrawer.picasso.PicassoModule;
 import io.palaima.debugdrawer.scalpel.ScalpelModule;
 import timber.log.Timber;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -63,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
             getWindow().setStatusBarColor(getResources().getColor(R.color.primary_dark_material_light));
         }*/
         if (BuildConfig.DEBUG) {
-            mDebugDrawer = new DebugDrawer.Builder(this).modules(
+            mDebugDrawer = new DebugDrawer.Builder().modules(
                     new LocationModule(this),
                     new ScalpelModule(this),
                     new LogModule(),
@@ -73,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
                     new BuildModule(this),
                     new NetworkModule(this),
                     new SettingsModule(this)
-            ).build();
+            ).bind(this, (ViewGroup)findViewById(android.R.id.content));
         }
 
         showDummyLog();

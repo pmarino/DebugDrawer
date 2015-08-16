@@ -16,13 +16,12 @@
 
 package io.palaima.debugdrawer;
 
-import android.app.Activity;
+import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.support.annotation.DrawableRes;
 import android.support.annotation.IntegerRes;
 import android.support.v4.widget.DrawerLayout;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -115,10 +114,6 @@ public class DebugDrawer {
 
     public static class Builder {
 
-        private ViewGroup mRootView;
-
-        private Activity mActivity;
-
         private DrawerLayout mDrawerLayout;
 
         private ScrollView mSliderLayout;
@@ -144,33 +139,8 @@ public class DebugDrawer {
 
         private ScrimInsetsFrameLayout mDrawerContentRoot;
 
-        /**
-         * Pass the activity you use the drawer in ;)
-         * This is required if you want to set any values by resource
-         */
-        public Builder(Activity activity) {
-            this.mRootView = (ViewGroup) activity.findViewById(android.R.id.content);
-            this.mActivity = activity;
-        }
+        public Builder() {
 
-        /**
-         * Pass the rootView of the Drawer which will be used to inflate the DrawerLayout in
-         */
-        public Builder rootView(ViewGroup rootView) {
-            this.mRootView = rootView;
-            return this;
-        }
-
-        /**
-         * Pass the rootView as resource of the Drawer which will be used to inflate the
-         * DrawerLayout in
-         */
-        public Builder rootView(int rootViewRes) {
-            if (mActivity == null) {
-                throw new RuntimeException("please pass an activity first to use this call");
-            }
-
-            return rootView((ViewGroup) mActivity.findViewById(rootViewRes));
         }
 
         /**
@@ -186,30 +156,6 @@ public class DebugDrawer {
          */
         public Builder widthPx(int drawerWidthPx) {
             this.mDrawerWidth = drawerWidthPx;
-            return this;
-        }
-
-        /**
-         * Set the Drawer width with a dp value
-         */
-        public Builder widthDp(int drawerWidthDp) {
-            if (mActivity == null) {
-                throw new RuntimeException("please pass an activity first to use this call");
-            }
-            this.mDrawerWidth = (int) TypedValue.applyDimension(1, drawerWidthDp,
-                    mActivity.getResources().getDisplayMetrics());
-            return this;
-        }
-
-        /**
-         * Set the Drawer width with a dimension resource
-         */
-        public Builder widthRes(int drawerWidthRes) {
-            if (mActivity == null) {
-                throw new RuntimeException("please pass an activity first to use this call");
-            }
-
-            this.mDrawerWidth = mActivity.getResources().getDimensionPixelSize(drawerWidthRes);
             return this;
         }
 
@@ -266,26 +212,36 @@ public class DebugDrawer {
         }
 
         /**
-         * Build and add the Drawer to your activity
-         *
-         * @return
+         * Sets DrawerListener for Drawer
+         * @param listener - DrawerListener
+         * @return Builder
          */
-        public DebugDrawer build() {
-            if (mActivity == null) {
-                throw new RuntimeException("please pass an activity");
+        public Builder onDrawerListener(DrawerLayout.DrawerListener listener) {
+            mOnDrawerListener = listener;
+            return this;
+        }
+
+        /**
+         * Builds and binds debug drawer to the specified root view.
+         * @param context - Context used to get resources
+         * @param rootView - view used to attach DrawerLayout to.
+         * @return DebugDrawer
+         */
+        public DebugDrawer bind(Context context, ViewGroup rootView) {
+            if (context == null) {
+                throw new RuntimeException("Context should not be null.");
             }
 
-            if (mRootView == null || mRootView.getChildCount() == 0) {
-                throw new RuntimeException(
-                        "You have to set your layout for this activity with setContentView() first.");
+            if (rootView == null || rootView.getChildCount() == 0) {
+                throw new RuntimeException("rootView is null");
             }
 
+            LayoutInflater inflater = LayoutInflater.from(context);
 
-            mDrawerLayout = (DrawerLayout) mActivity.getLayoutInflater()
-                    .inflate(R.layout.debug_drawer, mRootView, false);
+            mDrawerLayout = (DrawerLayout) inflater.inflate(R.layout.debug_drawer, rootView, false);
 
             //get the content view
-            View contentView = mRootView.getChildAt(0);
+            View contentView = rootView.getChildAt(0);
             boolean alreadyInflated = contentView instanceof DrawerLayout;
 
             //get the drawer root
@@ -294,10 +250,10 @@ public class DebugDrawer {
             //only add the new layout if it wasn't done before
             if (!alreadyInflated) {
                 // remove the contentView
-                mRootView.removeView(contentView);
+                rootView.removeView(contentView);
             } else {
                 //if it was already inflated we have to clean up again
-                mRootView.removeAllViews();
+                rootView.removeAllViews();
             }
 
             //create the layoutParams to use for the contentView
@@ -310,7 +266,7 @@ public class DebugDrawer {
             mDrawerContentRoot.addView(contentView, layoutParamsContentView);
 
             //add the drawerLayout to the root
-            mRootView.addView(mDrawerLayout, new ViewGroup.LayoutParams(
+            rootView.addView(mDrawerLayout, new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
             ));
@@ -354,7 +310,7 @@ public class DebugDrawer {
             });
 
 
-            mSliderLayout = (ScrollView) mActivity.getLayoutInflater().inflate(
+            mSliderLayout = (ScrollView) inflater.inflate(
                     R.layout.debug_drawer_slider, mDrawerLayout, false);
             mContainer = (LinearLayout) mSliderLayout.findViewById(R.id.container);
 
@@ -366,7 +322,7 @@ public class DebugDrawer {
                     params.gravity = mDrawerGravity;
                 }
                 // if this is a drawer from the right, change the margins :D
-                params = processDrawerLayoutParams(params);
+                params = processDrawerLayoutParams(params,context);
                 // set the new layout params
                 mSliderLayout.setLayoutParams(params);
             }
@@ -375,14 +331,13 @@ public class DebugDrawer {
             if (mSliderBackgroundColor != 0) {
                 mSliderLayout.setBackgroundColor(mSliderBackgroundColor);
             } else if (mSliderBackgroundColorRes != -1) {
-                mSliderLayout.setBackgroundColor(mActivity.getResources().getColor(mSliderBackgroundColorRes));
+                mSliderLayout.setBackgroundColor(context.getResources().getColor(mSliderBackgroundColorRes));
             } else if (mSliderBackgroundDrawable != null) {
                 UIUtils.setBackground(mSliderLayout, mSliderBackgroundDrawable);
             } else if (mSliderBackgroundDrawableRes != -1) {
                 UIUtils.setBackground(mSliderLayout, mSliderBackgroundColorRes);
             }
 
-            LayoutInflater inflater = LayoutInflater.from(mActivity);
             if (mDrawerItems != null && !mDrawerItems.isEmpty()) {
                 DrawerModule drawerItem;
                 for (int i = 0; i < mDrawerItems.size(); i++) {
@@ -396,10 +351,6 @@ public class DebugDrawer {
             //create the result object
             DebugDrawer result = new DebugDrawer(this);
 
-            //forget the reference to the activity
-            mActivity = null;
-
-
             return result;
         }
 
@@ -409,7 +360,7 @@ public class DebugDrawer {
          * @param params
          * @return
          */
-        private DrawerLayout.LayoutParams processDrawerLayoutParams(DrawerLayout.LayoutParams params) {
+        private DrawerLayout.LayoutParams processDrawerLayoutParams(DrawerLayout.LayoutParams params,Context context) {
             if (params != null) {
                 if (mDrawerGravity != 0 && (mDrawerGravity == Gravity.RIGHT || mDrawerGravity == Gravity.END)) {
                     params.rightMargin = 0;
@@ -417,16 +368,16 @@ public class DebugDrawer {
                         params.setMarginEnd(0);
                     }
 
-                    params.leftMargin = mActivity.getResources().getDimensionPixelSize(R.dimen.debug_drawer_margin);
+                    params.leftMargin = context.getResources().getDimensionPixelSize(R.dimen.debug_drawer_margin);
                     if (Build.VERSION.SDK_INT >= 17) {
-                        params.setMarginEnd(mActivity.getResources().getDimensionPixelSize(R.dimen.debug_drawer_margin));
+                        params.setMarginEnd(context.getResources().getDimensionPixelSize(R.dimen.debug_drawer_margin));
                     }
                 }
 
                 if (mDrawerWidth > -1) {
                     params.width = mDrawerWidth;
                 } else {
-                    params.width = UIUtils.getOptimalDrawerWidth(mActivity);
+                    params.width = UIUtils.getOptimalDrawerWidth(context);
                 }
             }
 
